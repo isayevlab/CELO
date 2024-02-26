@@ -121,12 +121,15 @@ class SpaceGenerator:
             for mixture in self.mix_feats.values():
                 names += mixture.names
             space = list()
-            for param in param_grid:
-                for mixture in self.mix_feats.values():
-                    for comb in mixture.combs:
-                        for weight in mixture.weights:
-                            dct = {**param, **dict(zip(comb, weight))}
-                            space.append(dct)
+            if len(self.mix_feats) == 0:
+                space = param_grid
+            else:
+                for param in param_grid:
+                    for mixture in self.mix_feats.values():
+                        for comb in mixture.combs:
+                            for weight in mixture.weights:
+                                dct = {**param, **dict(zip(comb, weight))}
+                                space.append(dct)
             self.space = pd.DataFrame(space).fillna(0.)
 
 
@@ -147,6 +150,10 @@ if __name__ == "__main__":
     features_dict = {"a": [1, 2, 3], "b": {"type": "range", "params": [0, 1, 11]},
                      "C": {"type": "mixture", "components": ["A", "B", "C", "D"],
                            "params": {"max_num_component": 3}}}
-    space_generator = SpaceGenerator(features_dict, save_space=False, max_space=5000)
+
+    features_dict = {"a": [1, 2, 3], "b": [1, 2, 3]}
+    space_generator = SpaceGenerator(features_dict, save_space=True, max_space=5000)
+
+    print(space_generator.space)
 
     print(space_generator.sample(5))

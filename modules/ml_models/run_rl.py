@@ -19,10 +19,10 @@ def run_rl(experiment_name, rewards, ensemble_size):
                            save_config_kwargs={"overwrite": True},
                            args=args, run=False)
         cli.trainer.fit(cli.model, cli.datamodule)
-        models.append(deepcopy(cli.model.policy))
+        models.append(deepcopy(cli.model.target))
     model_agency = EnsembledModel(models)
 
-    cli.model.policy = model_agency
+    cli.model.target = model_agency
     predictions = cli.trainer.predict(cli.model, datamodule=cli.datamodule)
 
     rewards = [i[0] for i in predictions]

@@ -45,8 +45,8 @@ class MLModelSelection(ServeStreamlit):
                     space["Reward"] = mean
 
                     fig = px.scatter(space,
-                                     x="Reward",
-                                     y="Uncertainty",
+                                     x="Uncertainty",
+                                     y="Reward",
                                      hover_data=features)
                     st.plotly_chart(fig)
                     st.dataframe(space)

@@ -44,7 +44,8 @@ class SpaceEnumerator(ServeStreamlit):
                 space_dict = yaml.safe_load(input_file)
             if space_dict is not None:
                 from modules.space_generator import SpaceGenerator
-                space = SpaceGenerator(features_dict=space_dict, max_space=space_size)
+                space = SpaceGenerator(features_dict=space_dict, max_space=space_size,
+                                       save_space=True)
                 space_df = space.space
                 space_df["index"] = get_index(space_df)
                 space_df = space_df.set_index("index")

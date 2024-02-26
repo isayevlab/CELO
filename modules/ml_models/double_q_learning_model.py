@@ -96,33 +96,23 @@ class DQNLightning(LightningModule):
 
         if isinstance(x, list) or isinstance(x, tuple):
             x = x[0]
-        output = self.policy(x)
+        output = self.target(x)
         return output
 
     def training_step(self, batch, nb_batch):
-        """Carries out a single step through the environment to update the replay buffer. Then calculates loss
-        based on the minibatch recieved.
-
-        Args:
-            batch: current mini batch of replay data
-            nb_batch: batch number
-
-        Returns:
-            Training loss and log metrics
-        """
         target_net_state_dict = self.target.state_dict()
         policy_net_state_dict = self.policy.state_dict()
-        for key in policy_net_state_dict:
-            target_net_state_dict[key] = policy_net_state_dict[key] * self.hparams.tau + \
-                                         target_net_state_dict[
-                                             key] * (1 - self.hparams.tau)
-        self.target.load_state_dict(target_net_state_dict)
+        with torch.no_grad():
+            for key in policy_net_state_dict:
+                target_net_state_dict[key] = policy_net_state_dict[key] * self.hparams.tau + \
+                                             target_net_state_dict[
+                                                 key] * (1 - self.hparams.tau)
+            self.target.load_state_dict(target_net_state_dict)
 
         state_action_batch, reward = batch
         state_action_values = self.policy(state_action_batch)
 
-        expected_state_action_values = reward
-        loss = self.criterion(state_action_values, expected_state_action_values)
+        loss = self.criterion(state_action_values, reward)
 
         self.log_dict(
             {
