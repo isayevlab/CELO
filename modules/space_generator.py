@@ -72,8 +72,6 @@ class SpaceGenerator:
         self.space_size = np.prod([len(v.weights)*len(v.combs) for v in self.mix_feats.values()])*space_size
 
         self.max_space = max_space
-
-        print(self.space_size)
         self.save_space = save_space
         if self.save_space:
             self.construct_space()
@@ -108,6 +106,7 @@ class SpaceGenerator:
                 for mixture in self.mix_feats.values():
                     idx = np.random.randint(len(mixture.combs))
                     comb = mixture.combs[idx]
+                    idx = np.random.randint(len(mixture.weights))
                     weight = mixture.weights[idx]
                     sample = {**sample, **dict(zip(comb, weight))}
                 results.append(sample)
@@ -134,7 +133,7 @@ class SpaceGenerator:
         else:
             save_space = self.save_space
             self.save_space = False
-            self.space = pd.DataFrame(self.sample(self.max_space))
+            self.space = pd.DataFrame(self.sample(self.max_space)).fillna(0.)
             self.save_space = save_space
 
     @classmethod
