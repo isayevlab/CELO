@@ -1,10 +1,38 @@
 import itertools
 import random
+from collections import Counter
 
 import numpy as np
 import pandas as pd
-import yaml
 from sklearn.model_selection import ParameterGrid
+
+
+def space_prod(spaces):
+    if len(spaces) == 1:
+        return spaces[0]
+    if len(spaces) == 2:
+        results = []
+        for dct1 in spaces[0]:
+            for dct2 in spaces[1]:
+                results.append({**dct1, **dct2})
+        return results
+    else:
+        return space_prod([spaces[0], space_prod(spaces[1:])])
+
+
+def space_concat(spaces):
+    n = len(spaces[0])
+
+    for space in spaces:
+        assert len(space) == n
+
+    results = []
+    for i in range(n):
+        dct = {}
+        for j in range(len(spaces)):
+            dct = {**dct, **spaces[j][i]}
+        results.append(dct)
+    return results
 
 
 def weights_decomposition(K, total_sum=1., step=0.1, weights=None, shuffle=False):
@@ -37,39 +65,157 @@ def weights_decomposition(K, total_sum=1., step=0.1, weights=None, shuffle=False
 
 
 class ComponentsMixture:
-    def __init__(self, components_names, max_num_component=None, precision=0.1, shuffle=True):
+    def __init__(self, components_names, n_components=None,
+            step=0.1, shuffle=True, total_sum=1.):
+        self.total_sum = total_sum
         self.names = components_names
-        self.max_num_component = max_num_component if max_num_component is not None else \
-            len(self.names)
-        self.combs, self.weights = self.space_enumeration(precision, shuffle)
+        self.max_num_component = n_components if n_components is not None else len(self.names)
+        self.combs, self.weights = self.space_enumeration(step, shuffle)
         self.shuffle = shuffle
 
-    def space_enumeration(self, precision, shuffle):
+    def space_enumeration(self, step, shuffle):
         combs = list(itertools.combinations(self.names, self.max_num_component))
-        weights = list(weights_decomposition(self.max_num_component, total_sum=1.,
-                                        step=precision, shuffle=shuffle))
+        weights = list(weights_decomposition(self.max_num_component, total_sum=self.total_sum,
+                                             step=step, shuffle=shuffle))
 
         if shuffle:
             random.shuffle(combs)
         return combs, weights
 
     def sample(self, n):
-
-        if n <= len(self.combs):
-            combs = np.random.choice(self.combs, n, replace=False)
-            weights = np.random.choice(self.weights, n)
-        else:
-            combs = np.random.choice(self.combs, n)
-            weights = np.random.choice(self.weights, n)
+        idxs = np.random.randint(0, len(self.combs), n)
+        combs = [self.combs[i] for i in idxs]
+        idxs = np.random.randint(0, len(self.weights), n)
+        weights = [self.weights[i] for i in idxs]
         return combs, weights
+
+    def get_space_size(self):
+        return len(self.combs) * len(self.weights)
+
+    def get_space(self):
+        results = []
+
+        for c in self.combs:
+            for w in self.weights:
+                results.append(dict(zip(c, w)))
+        return results
+
+
+class MultipleComponentsMixture:
+    def __init__(self, components_names, min_components=None, max_components=None,
+            step=0.1, shuffle=True, total_sum=1.):
+        self.components = {}
+
+        for i in range(min_components, max_components + 1):
+            self.components[i] = ComponentsMixture(components_names, n_components=i,
+                                                   step=step, shuffle=shuffle,
+                                                   total_sum=total_sum)
+
+    def sample(self, n):
+        idxs = list(np.random.choice(list(self.components.keys()), n))
+        id2n = Counter(idxs)
+        combs = []
+        weights = []
+        for i in id2n:
+            c, w = self.components[i].sample(id2n[i])
+            combs.extend(c)
+            weights.extend(w)
+        return combs, weights
+
+    def get_space_size(self):
+        return sum([comp.get_space_size() for comp in self.components.values()])
+
+    def get_space(self):
+        results = []
+
+        for comp in self.components.values():
+            results.extend(comp.get_space())
+        return results
+
+
+class SuperComponentsMixture:
+    def __init__(self, component_dict, n_components=None, step=0.1,
+            shuffle=True):
+        self.n_components = n_components if n_components is not None else len(component_dict)
+
+        self.names = sorted(list(component_dict.keys()))
+        combs = list(itertools.combinations(self.names, self.n_components))
+        weights = list(weights_decomposition(self.n_components, total_sum=1.,
+                                             step=step, shuffle=shuffle))
+        self.components = []
+
+        for comb in combs:
+            for weight in weights:
+                components = []
+
+                for name, w in zip(comb, weight):
+                    components.append(MultipleComponentsMixture(component_dict[name]["components"],
+                                                                total_sum=w,
+                                                                **component_dict[name]["params"]))
+                empty = False
+                for comp in components:
+                    if comp.get_space_size() == 0:
+                        empty = True
+                if not empty:
+                    self.components.append(components)
+
+    def sample(self, n):
+        k = len(self.components)
+        idxs = np.random.choice(np.arange(k), n)
+
+        id2n = dict(Counter(idxs))
+        combs = []
+        weights = []
+        for id in id2n:
+            c, w = [[] for _ in range(len(self.names))], [[] for _ in range(len(self.names))]
+            for comp in self.components[id]:
+                _c, _w = comp.sample(id2n[id])
+                for i in range(len(self.names)):
+                    c[i].extend(list(_c[i]))
+                    w[i].extend(list(_w[i]))
+            combs.extend(c)
+            weights.extend(w)
+        return combs, weights
+
+    def get_space_size(self):
+        space_size = 0
+
+        for comp in self.components:
+            sizes = []
+            for i, c in enumerate(comp):
+                sizes.append(c.get_space_size())
+            space_size += np.prod(sizes)
+
+        return space_size
+
+    def get_space(self):
+        tmp_res = [[] for _ in self.names]
+        for comp in self.components:
+            for i, c in enumerate(comp):
+                tmp_res[i].extend(c.get_space())
+        results = space_prod(tmp_res)
+        return results
 
 
 class SpaceGenerator:
     def __init__(self, features_dict, max_space=10 ** 7, save_space=True):
         self.grid_feats, self.mix_feats = self.build_features(features_dict)
-        space_size = np.prod([len(i) for i in self.grid_feats.values()])
 
-        self.space_size = np.prod([len(v.weights)*len(v.combs) for v in self.mix_feats.values()])*space_size
+        grid_size = None
+        mix_size = None
+        if len(self.grid_feats) > 0:
+            grid_size = np.prod([len(i) for i in self.grid_feats.values()])
+        if len(self.mix_feats) > 0:
+            mix_size = np.prod([v.get_space_size() for v in self.mix_feats.values()])
+
+        if grid_size is None and mix_size is None:
+            self.space_size = 0
+        elif grid_size is None:
+            self.space_size = mix_size
+        elif mix_size is None:
+            self.space_size = grid_size
+        else:
+            self.space_size = grid_size * mix_size
 
         self.max_space = max_space
         self.save_space = save_space
@@ -87,7 +233,11 @@ class SpaceGenerator:
                     if value["type"] == "range":
                         grid_features[key] = np.linspace(*value["params"])
                     elif value["type"] == "mixture":
-                        mixture_features[key] = ComponentsMixture(value["components"], **value["params"])
+                        mixture_features[key] = MultipleComponentsMixture(value["components"],
+                                                                          **value["params"])
+                    elif value["type"] == "super_mixture":
+                        mixture_features[key] = SuperComponentsMixture(value["components"],
+                                                                       **value["params"])
                 else:
                     raise NotImplemented("The dictionary should contain 'type' key")
 
@@ -97,39 +247,29 @@ class SpaceGenerator:
         if self.save_space:
             return np.random.choice(self.space, n)
         else:
-            results = []
+            grid_space = []
             for _ in range(n):
                 sample = {}
                 for i, k in self.grid_feats.items():
                     sample[i] = np.random.choice(k)
+                grid_space.append(sample)
+            spaces = [grid_space]
 
-                for mixture in self.mix_feats.values():
-                    idx = np.random.randint(len(mixture.combs))
-                    comb = mixture.combs[idx]
-                    idx = np.random.randint(len(mixture.weights))
-                    weight = mixture.weights[idx]
-                    sample = {**sample, **dict(zip(comb, weight))}
-                results.append(sample)
+            for mixture in self.mix_feats.values():
+                spaces.append(mixture.sample(n))
+            results = space_concat(spaces)
             return results
 
     def construct_space(self):
         if self.max_space >= self.space_size:
-            param_grid = list(ParameterGrid(self.grid_feats))
+            spaces = []
+            if len(self.grid_feats) > 0:
+                spaces.append(list(ParameterGrid(self.grid_feats)))
 
-            names = list(param_grid[0].keys())
-
-            for mixture in self.mix_feats.values():
-                names += mixture.names
-            space = list()
-            if len(self.mix_feats) == 0:
-                space = param_grid
-            else:
-                for param in param_grid:
-                    for mixture in self.mix_feats.values():
-                        for comb in mixture.combs:
-                            for weight in mixture.weights:
-                                dct = {**param, **dict(zip(comb, weight))}
-                                space.append(dct)
+            if len(self.mix_feats) > 0:
+                for mix in self.mix_feats.values():
+                    spaces.append(mix.get_space())
+            space = space_prod(spaces)
             self.space = pd.DataFrame(space).fillna(0.)
 
 
@@ -147,13 +287,8 @@ class SpaceGenerator:
 
 
 if __name__ == "__main__":
-    features_dict = {"a": [1, 2, 3], "b": {"type": "range", "params": [0, 1, 11]},
-                     "C": {"type": "mixture", "components": ["A", "B", "C", "D"],
-                           "params": {"max_num_component": 3}}}
+    import yaml
 
-    features_dict = {"a": [1, 2, 3], "b": [1, 2, 3]}
-    space_generator = SpaceGenerator(features_dict, save_space=True, max_space=5000)
-
+    conf = yaml.safe_load(open("../tmp/space.yaml"))
+    space_generator = SpaceGenerator(conf, save_space=True, max_space=5000)
     print(space_generator.space)
-
-    print(space_generator.sample(5))
