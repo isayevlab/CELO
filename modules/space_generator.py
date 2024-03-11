@@ -87,7 +87,10 @@ class ComponentsMixture:
         combs = [self.combs[i] for i in idxs]
         idxs = np.random.randint(0, len(self.weights), n)
         weights = [self.weights[i] for i in idxs]
-        return combs, weights
+        results = []
+        for c, w in zip(combs, weights):
+            results.append(dict(zip(c, w)))
+        return results
 
     def get_space_size(self):
         return len(self.combs) * len(self.weights)
@@ -114,13 +117,11 @@ class MultipleComponentsMixture:
     def sample(self, n):
         idxs = list(np.random.choice(list(self.components.keys()), n))
         id2n = Counter(idxs)
-        combs = []
-        weights = []
+        samples = []
         for i in id2n:
-            c, w = self.components[i].sample(id2n[i])
-            combs.extend(c)
-            weights.extend(w)
-        return combs, weights
+            s = self.components[i].sample(id2n[i])
+            samples.extend(s)
+        return samples
 
     def get_space_size(self):
         return sum([comp.get_space_size() for comp in self.components.values()])
@@ -164,18 +165,12 @@ class SuperComponentsMixture:
         idxs = np.random.choice(np.arange(k), n)
 
         id2n = dict(Counter(idxs))
-        combs = []
-        weights = []
+        spaces = [[] for _ in range(len(self.names))]
         for id in id2n:
-            c, w = [[] for _ in range(len(self.names))], [[] for _ in range(len(self.names))]
-            for comp in self.components[id]:
-                _c, _w = comp.sample(id2n[id])
-                for i in range(len(self.names)):
-                    c[i].extend(list(_c[i]))
-                    w[i].extend(list(_w[i]))
-            combs.extend(c)
-            weights.extend(w)
-        return combs, weights
+            for i, comp in enumerate(self.components[id]):
+                spaces[i].extend(comp.sample(id2n[id]))
+        samples = space_concat(spaces)
+        return samples
 
     def get_space_size(self):
         space_size = 0
@@ -290,5 +285,5 @@ if __name__ == "__main__":
     import yaml
 
     conf = yaml.safe_load(open("../tmp/space.yaml"))
-    space_generator = SpaceGenerator(conf, save_space=True, max_space=5000)
-    print(space_generator.space)
+    space_generator = SpaceGenerator(conf, save_space=False, max_space=5000)
+    print(space_generator.sample(10))
