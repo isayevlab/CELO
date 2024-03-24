@@ -44,7 +44,7 @@ def weights_decomposition(K, total_sum=1., step=0.1, weights=None, shuffle=False
             weights.append(total_sum)
             yield weights
 
-    if total_sum < 0:
+    if total_sum < step*K:
         return
 
     sum = 0
@@ -110,9 +110,11 @@ class MultipleComponentsMixture:
         self.components = {}
 
         for i in range(min_components, max_components + 1):
-            self.components[i] = ComponentsMixture(components_names, n_components=i,
-                                                   step=step, shuffle=shuffle,
-                                                   total_sum=total_sum)
+            comp = ComponentsMixture(components_names, n_components=i,
+                                     step=step, shuffle=shuffle,
+                                     total_sum=total_sum)
+            if comp.get_space_size() > 0:
+                self.components[i] = comp
 
     def sample(self, n):
         idxs = list(np.random.choice(list(self.components.keys()), n))
@@ -148,7 +150,6 @@ class SuperComponentsMixture:
         for comb in combs:
             for weight in weights:
                 components = []
-
                 for name, w in zip(comb, weight):
                     components.append(MultipleComponentsMixture(component_dict[name]["components"],
                                                                 total_sum=w,
@@ -157,6 +158,7 @@ class SuperComponentsMixture:
                 for comp in components:
                     if comp.get_space_size() == 0:
                         empty = True
+                        break
                 if not empty:
                     self.components.append(components)
 
@@ -184,12 +186,13 @@ class SuperComponentsMixture:
         return space_size
 
     def get_space(self):
-        tmp_res = [[] for _ in self.names]
+        res = []
         for comp in self.components:
+            tmp_res = []
             for i, c in enumerate(comp):
-                tmp_res[i].extend(c.get_space())
-        results = space_prod(tmp_res)
-        return results
+                tmp_res.append(c.get_space())
+            res.extend(space_prod(tmp_res))
+        return res
 
 
 class SpaceGenerator:
@@ -265,8 +268,7 @@ class SpaceGenerator:
                 for mix in self.mix_feats.values():
                     spaces.append(mix.get_space())
             space = space_prod(spaces)
-            self.space = pd.DataFrame(space).fillna(0.)
-
+            self.space = pd.DataFrame.from_records(space).fillna(0.)
 
         else:
             save_space = self.save_space
@@ -285,5 +287,8 @@ if __name__ == "__main__":
     import yaml
 
     conf = yaml.safe_load(open("../tmp/space.yaml"))
-    space_generator = SpaceGenerator(conf, save_space=False, max_space=5000)
+    space_generator = SpaceGenerator(conf, save_space=True, max_space=1000000)
+    print(space_generator.space.head())
+    space_generator = SpaceGenerator(conf, save_space=False, max_space=10)
     print(space_generator.sample(10))
+
