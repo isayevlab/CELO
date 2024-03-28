@@ -1,4 +1,4 @@
-# CELO: Chemical Experiment Loop Orchistration 
+# CELO: Chemical Experiment Loop Orchestration 
 
 ## Introduction
 
