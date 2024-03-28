@@ -11,9 +11,9 @@ from torch import Tensor
 
 class DQN(nn.Module):
     def __init__(self, n_hidden=16,
-            state_size=None, action_size=None):
+            input_dim=12):
         super(DQN, self).__init__()
-        n_total = state_size + action_size
+        n_total = input_dim
         if not isinstance(n_hidden, Iterable):
             n_hidden = [n_hidden, ]
         fcs = [nn.Linear(n_total, n_hidden[0]), ]
@@ -47,7 +47,7 @@ class DQNLightning(LightningModule):
     """Basic DQN Model."""
 
     def __init__(self,
-            state_size=9, action_size=3, n_hidden=16, tau=0.05) -> None:
+            input_dim=12, n_hidden=16, tau=0.05) -> None:
         super().__init__()
         self.save_hyperparameters()
 
@@ -71,12 +71,10 @@ class DQNLightning(LightningModule):
         #     self.targets.append(target_net)
         random_seed = random.randint(1000, 100000)
         torch.manual_seed(random_seed)
-        self.policy = DQN(state_size=state_size,
-                          action_size=action_size,
+        self.policy = DQN(input_dim=input_dim,
                           n_hidden=n_hidden)
         torch.manual_seed(89)
-        self.target = DQN(state_size=state_size,
-                          action_size=action_size,
+        self.target = DQN(input_dim=input_dim,
                           n_hidden=n_hidden)
         self.target.load_state_dict(self.policy.state_dict())
 
@@ -111,7 +109,7 @@ class DQNLightning(LightningModule):
 
         state_action_batch, reward = batch
         state_action_values = self.policy(state_action_batch)
-
+        print(reward)
         loss = self.criterion(state_action_values, reward)
 
         self.log_dict(

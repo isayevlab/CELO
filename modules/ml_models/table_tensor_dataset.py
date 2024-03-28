@@ -1,5 +1,3 @@
-from collections.abc import Iterable
-
 import pandas as pd
 import torch
 from lightning import LightningDataModule
@@ -12,18 +10,15 @@ from modules.preprocess_data import preprocess_data
 class TableDatamodule(LightningDataModule):
     def __init__(self, space_path, labeled_path, target_names, batch_size=32, p=0.1):
         super().__init__()
-        if "," in target_names:
+        if isinstance(target_names, str):
             target_names = target_names.split(", ")
         space = pd.read_csv(space_path, index_col=0)
         labeled_data = pd.read_csv(labeled_path)
 
         self.features = list(space.columns)
 
-        if isinstance(target_names, Iterable):
-            y = labeled_data.loc[:, target_names]
-            y = y.mean(axis=1)
-        else:
-            y = labeled_data.loc[:, target_names]
+        y = labeled_data.loc[:, target_names]
+        y = y.mean(axis=1)
 
         x = labeled_data.loc[:, self.features]
         x = preprocess_data(x)
