@@ -31,7 +31,7 @@ To install CELO, use the following set of commands:
 
 ```bash
 conda env create -f conda_environment.yml
-conda activate cleo
+conda activate celo
 ```
 This will create a conda environment based on the specifications in `conda_environment.yml` and activate it.
 

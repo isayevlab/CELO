@@ -1,4 +1,4 @@
-name: cleo
+name: celo
 channels:
   - conda-forge
   - defaults
