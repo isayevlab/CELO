@@ -1,0 +1,61 @@
+seed_everything: False
+trainer:
+  callbacks:
+    class_path: lightning.pytorch.callbacks.EarlyStopping
+    init_args:
+      patience: 150
+      monitor: train_loss
+
+  accelerator: 'cpu'
+  devices: 1
+  strategy: auto
+  num_nodes: 1
+  precision: 64
+  logger: False
+  fast_dev_run: null
+  max_epochs: 3000
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  max_time: null
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+  overfit_batches: 0.0
+  val_check_interval: null
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: null
+  log_every_n_steps: null
+  enable_checkpointing: False
+  enable_progress_bar: True
+  enable_model_summary: True
+  accumulate_grad_batches: 1
+  gradient_clip_val: 0.1
+  gradient_clip_algorithm: null
+  deterministic: null
+  benchmark: null
+  inference_mode: True
+  use_distributed_sampler: False
+  profiler: null
+  detect_anomaly: False
+  barebones: False
+  plugins: null
+  sync_batchnorm: False
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+
+model:
+  input_dim: 12
+  n_hidden: 16
+  tau: 0.05
+
+data:
+  batch_size: 32
+  p: 0.1
+
+optimizer:
+  class_path: AdamW
+  init_args:
+    lr: 3e-3
+    amsgrad: True
