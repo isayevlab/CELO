@@ -39,11 +39,3 @@ def run_rl(experiment_name, rewards, ensemble_size, st_bar=None):
     stds = torch.cat(stds).cpu().detach().numpy()
 
     return rewards, stds
-
-
-if __name__ == "__main__":
-    run_rl("exp_1",
-           ["Strain Reward",
-            "Stress Reward",
-            "Toughness Reward"],
-           ensemble_size=3)

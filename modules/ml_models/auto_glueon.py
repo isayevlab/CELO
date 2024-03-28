@@ -39,7 +39,8 @@ def run_autogluon(experiment_name, rewards, ensemble_size, st_bar=None):
     if st_bar is not None:
         st_bar.progress(0, text=f"ML model selection")
 
-    predictor = TabularPredictor(label="reward", path="tmp/").fit(X, fit_weighted_ensemble=False)
+    predictor = TabularPredictor(label="reward", path="ag_data/tmp").fit(X,
+                                                                         fit_weighted_ensemble=False)
 
     model = predictor.get_model_best()
     model_hyperparameters = get_hyperparameters(model)
@@ -48,7 +49,7 @@ def run_autogluon(experiment_name, rewards, ensemble_size, st_bar=None):
 
     for i in range(ensemble_size):
         X = X.sample(frac=1)
-        tp = TabularPredictor(label="reward", path="tmp/")
+        tp = TabularPredictor(label="reward", path="ag_data/tmp")
         tp = tp.fit(X,
                     fit_weighted_ensemble=False,
                     hyperparameters=model_hyperparameters)
@@ -58,10 +59,3 @@ def run_autogluon(experiment_name, rewards, ensemble_size, st_bar=None):
     std = predictions.std(axis=1)
     return mean.values, std.values
 
-
-if __name__ == "__main__":
-    run_autogluon("exp_1",
-                  ["Strain Reward",
-                   "Stress Reward",
-                   "Toughness Reward"],
-                  ensemble_size=3)

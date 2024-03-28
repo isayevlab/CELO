@@ -3,6 +3,7 @@ import random
 from collections import Counter
 
 import numpy as np
+import yaml
 import pandas as pd
 from sklearn.model_selection import ParameterGrid
 
@@ -281,14 +282,3 @@ class SpaceGenerator:
         with open(path) as f:
             my_dict = yaml.safe_load(f)
         return cls(my_dict, **kwargs)
-
-
-if __name__ == "__main__":
-    import yaml
-
-    conf = yaml.safe_load(open("../tmp/space.yaml"))
-    space_generator = SpaceGenerator(conf, save_space=True, max_space=1000000)
-    print(space_generator.space.head())
-    space_generator = SpaceGenerator(conf, save_space=False, max_space=10)
-    print(space_generator.sample(10))
-

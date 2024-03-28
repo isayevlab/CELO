@@ -24,7 +24,6 @@ class InputLabel(ServeStreamlit):
                                            num_rows="dynamic")
                 if st.button("Rewrite Labeled Data", type="primary"):
                     edited_df = edited_df.fillna(0)
-                    print(edited_df)
                     edited_df.to_csv(label_path, index=False)
             else:
                 st.write(f"There is no space for - {experiment_name}")

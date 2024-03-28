@@ -53,7 +53,6 @@ class ExplorationExplotation(ServeStreamlit):
 
                 selected = pd.concat(selected)
                 selected.sort_values(by="Reward", inplace=True, ascending=False)
-                st.dataframe(selected)
 
                 space["Color"] = "Did not explored"
                 space["Color"][reduced_space.index] = "Explored"
@@ -85,3 +84,4 @@ class ExplorationExplotation(ServeStreamlit):
                                  color="Color",
                                  hover_data=features)
                 st.plotly_chart(fig)
+                st.dataframe(selected)

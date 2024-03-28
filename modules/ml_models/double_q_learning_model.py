@@ -109,7 +109,6 @@ class DQNLightning(LightningModule):
 
         state_action_batch, reward = batch
         state_action_values = self.policy(state_action_batch)
-        print(reward)
         loss = self.criterion(state_action_values, reward)
 
         self.log_dict(
