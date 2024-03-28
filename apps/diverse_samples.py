@@ -38,5 +38,5 @@ class DiverseSamplesSelection(ServeStreamlit):
                              color="SELECTED",
                              color_discrete_map={False: 'grey', True: "red"})
             st.plotly_chart(fig)
-            st.download_button('Download selected samples CSV', projected_data.to_csv(),
-                               'selected_samples.csv', type="primary")
+            selected = space[projected_data["SELECTED"] == 1]
+            st.dataframe(selected)

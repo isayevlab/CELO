@@ -1,12 +1,11 @@
 import os.path
 
 import pandas as pd
-import streamlit as st
 import plotly.express as px
-
-
+import streamlit as st
 from lightning.app.components import ServeStreamlit
 
+from modules.ml_models.auto_glueon import run_autogluon
 from modules.ml_models.run_rl import run_rl
 
 
@@ -18,8 +17,8 @@ class MLModelSelection(ServeStreamlit):
             space_path = f"experiments/{experiment_name}/space.csv"
             labeled_path = f"experiments/{experiment_name}/labeled_samples.csv"
             if (os.path.exists(f"experiments/{experiment_name}")
-                and os.path.exists(f"experiments/{experiment_name}/space.csv")
-                and os.path.exists(f"experiments/{experiment_name}/labeled_samples.csv")):
+                    and os.path.exists(f"experiments/{experiment_name}/space.csv")
+                    and os.path.exists(f"experiments/{experiment_name}/labeled_samples.csv")):
 
                 space = pd.read_csv(space_path, index_col=0)
                 labeled_data = pd.read_csv(labeled_path)
@@ -39,11 +38,21 @@ class MLModelSelection(ServeStreamlit):
                     captions=["Reinforcement Learning", "Classical Machine Learning"])
                 ensemble_size = st.number_input(label="Desired ensemble size", value=12)
                 if st.button("Build ML model", type="primary"):
-                    mean, std = run_rl(experiment_name, rewards, ensemble_size)
+                    st_bar = st.progress(0, text="ML model training is starting")
+                    if type is "RL":
+                        mean, std = run_rl(experiment_name, rewards, ensemble_size, st_bar)
+                    else:
+                        mean, std = run_autogluon(experiment_name, rewards, ensemble_size, st_bar)
+                    st_bar.empty()
 
-                    space["Uncertainty"] = std
+                    predictions = pd.DataFrame(index=space.index)
+                    predictions["Reward"] = mean
+                    predictions["Uncertainty"] = std
+                    predictions_path = f"experiments/{experiment_name}/predictions.csv"
+                    predictions.to_csv(predictions_path)
+
                     space["Reward"] = mean
-
+                    space["Uncertainty"] = std
                     fig = px.scatter(space,
                                      x="Uncertainty",
                                      y="Reward",
@@ -53,7 +62,7 @@ class MLModelSelection(ServeStreamlit):
 
             else:
                 if not (os.path.exists(f"experiments/{experiment_name}") or
-                   not os.path.exists(f"experiments/{experiment_name}/labeled_samples.csv")):
+                        not os.path.exists(f"experiments/{experiment_name}/labeled_samples.csv")):
                     st.write(f"The space is not created for the experiment - {experiment_name}")
                 else:
                     st.write(f"There is no labeled samples for the experiment - {experiment_name}")
