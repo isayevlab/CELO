@@ -32,7 +32,9 @@ class SpaceEnumerator(ServeStreamlit):
         from streamlit_ace import st_ace
         st.header("Space description in YML style")
         input_text = st_ace("", language="yaml", )
-        input_file = st.file_uploader(label="Upload space descriptor", )
+        input_file = st.file_uploader(label="Upload space descriptor")
+        input_features = st.file_uploader(label="Upload molecule features",
+                                          accept_multiple_files=True)
         space_dict = None
         if input_text is not None and len(input_text) > 0:
             space_dict = yaml.safe_load(input_text)
@@ -40,11 +42,16 @@ class SpaceEnumerator(ServeStreamlit):
             space_dict = yaml.safe_load(input_file)
         if space_dict is not None:
             from modules.space_generator import SpaceGenerator
+            name_to_file = {}
+            if input_features is not None:
+                for file in input_features:
+                    name_to_file[file.name] = file
             space = SpaceGenerator(features_dict=space_dict, max_space=space_size,
-                                   save_space=True)
+                                   save_space=True, name_to_files=name_to_file)
             space_df = space.space
-            space_df["index"] = get_index(space_df)
-            space_df = space_df.set_index("index")
+            if len(space_df.columns) < 50:
+                space_df["index"] = get_index(space_df)
+                space_df = space_df.set_index("index")
             if experiment_name is not None and len(experiment_name) > 0:
                 save_folder = f"./experiments/{experiment_name}"
                 os.makedirs(save_folder, exist_ok=True)

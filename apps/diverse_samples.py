@@ -21,22 +21,25 @@ class DiverseSamplesSelection(ServeStreamlit):
 
         if experiment_name is not None and len(experiment_name) > 0:
             space = pd.read_csv(f"./experiments/{experiment_name}/space.csv", index_col=0)
-
         if space is not None:
-            df = preprocess_data(space)
+            ignore_columns = [col for col in space.columns if col.startswith("__")]
+            df = preprocess_data(space.loc[:, ~space.columns.isin(ignore_columns)])
             selected_indxs = select_init_diverse(dataset=df.values, n_sample=sample_number)
             projected_data = UMAP(n_neighbors=5, min_dist=0.5,
                                   metric='cosine').fit_transform(df.values)
-            projected_data = pd.DataFrame(projected_data, columns=["UMAP 1", "UMAP 2"],
-                                          index=df.index)
-            projected_data["SELECTED"] = 0
-            projected_data["SELECTED"].iloc[selected_indxs] = 1
-            projected_data["SELECTED"] = projected_data["SELECTED"].astype(bool)
-            fig = px.scatter(projected_data,
+            tmp_space = space.copy()
+            tmp_space["UMAP 1"] = projected_data[:, 0]
+            tmp_space["UMAP 2"] = projected_data[:, 1]
+
+            tmp_space["SELECTED"] = 0
+            tmp_space["SELECTED"].iloc[selected_indxs] = 1
+            tmp_space["SELECTED"] = tmp_space["SELECTED"].astype(bool)
+            fig = px.scatter(tmp_space,
                              x="UMAP 1",
                              y="UMAP 2",
                              color="SELECTED",
-                             color_discrete_map={False: 'grey', True: "red"})
+                             color_discrete_map={False: 'grey', True: "red"},
+                             hover_data=list(tmp_space.keys()))
             st.plotly_chart(fig)
-            selected = space[projected_data["SELECTED"] == 1]
+            selected = space.iloc[selected_indxs]
             st.dataframe(selected)

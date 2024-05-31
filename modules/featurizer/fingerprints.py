@@ -8,8 +8,8 @@ from rdkit.Chem import AllChem
 __all__ = ["morganfp", "RDKfp", "stacked_RDKfp", "mordred"]
 
 
-def morganfp(x, N=2048, radii=2):
-    fp3 = AllChem.GetMorganFingerprintAsBitVect(x, radii, nBits=N)
+def morganfp(x, n=2048, radii=2):
+    fp3 = AllChem.GetMorganFingerprintAsBitVect(x, radii, nBits=n)
     res3 = np.zeros(len(fp3))
     DataStructs.ConvertToNumpyArray(fp3, res3)
     return res3

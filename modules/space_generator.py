@@ -3,8 +3,8 @@ import random
 from collections import Counter
 
 import numpy as np
-import yaml
 import pandas as pd
+import yaml
 from sklearn.model_selection import ParameterGrid
 
 
@@ -45,7 +45,7 @@ def weights_decomposition(K, total_sum=1., step=0.1, weights=None, shuffle=False
             weights.append(total_sum)
             yield weights
 
-    if total_sum < step*K:
+    if total_sum < step * K:
         return
 
     sum = 0
@@ -109,6 +109,7 @@ class MultipleComponentsMixture:
     def __init__(self, components_names, min_components=None, max_components=None,
             step=0.1, shuffle=True, total_sum=1.):
         self.components = {}
+        self.names = components_names
 
         for i in range(min_components, max_components + 1):
             comp = ComponentsMixture(components_names, n_components=i,
@@ -142,11 +143,13 @@ class SuperComponentsMixture:
             shuffle=True):
         self.n_components = n_components if n_components is not None else len(component_dict)
 
-        self.names = sorted(list(component_dict.keys()))
-        combs = list(itertools.combinations(self.names, self.n_components))
+        self.component_names = sorted(list(component_dict.keys()))
+        combs = list(itertools.combinations(self.component_names, self.n_components))
         weights = list(weights_decomposition(self.n_components, total_sum=1.,
                                              step=step, shuffle=shuffle))
         self.components = []
+
+        self.names = set()
 
         for comb in combs:
             for weight in weights:
@@ -163,15 +166,22 @@ class SuperComponentsMixture:
                 if not empty:
                     self.components.append(components)
 
+        for comp in self.components:
+            for c in comp:
+                self.names.add(tuple(c.names))
+        self.names = list(self.names)
+        self.names = [j for i in self.names for j in i]
+
     def sample(self, n):
         k = len(self.components)
         idxs = np.random.choice(np.arange(k), n)
 
         id2n = dict(Counter(idxs))
-        spaces = [[] for _ in range(len(self.names))]
+        spaces = [[] for _ in range(len(self.component_names))]
         for id in id2n:
             for i, comp in enumerate(self.components[id]):
                 spaces[i].extend(comp.sample(id2n[id]))
+
         samples = space_concat(spaces)
         return samples
 
@@ -197,33 +207,48 @@ class SuperComponentsMixture:
 
 
 class SpaceGenerator:
-    def __init__(self, features_dict, max_space=10 ** 7, save_space=True):
-        self.grid_feats, self.mix_feats = self.build_features(features_dict)
+    def __init__(self, features_dict, max_space=10 ** 7, save_space=True,
+            name_to_files=None):
+
+        self.names = []
+        self.grid_feats, self.mix_feats, self.mol_feats = self.build_features(features_dict,
+                                                                              name_to_files)
+        self.names = self._get_names()
 
         grid_size = None
         mix_size = None
+        mol_size = None
         if len(self.grid_feats) > 0:
             grid_size = np.prod([len(i) for i in self.grid_feats.values()])
         if len(self.mix_feats) > 0:
             mix_size = np.prod([v.get_space_size() for v in self.mix_feats.values()])
+        if len(self.mol_feats) > 0:
+            mol_size = np.prod([len(i) for i in self.mol_feats.values()])
 
-        if grid_size is None and mix_size is None:
+        if grid_size is None and mix_size is None and mol_size is None:
             self.space_size = 0
-        elif grid_size is None:
-            self.space_size = mix_size
-        elif mix_size is None:
-            self.space_size = grid_size
         else:
-            self.space_size = grid_size * mix_size
-
+            grid_size = grid_size if grid_size is not None else 1.
+            mix_size = mix_size if mix_size is not None else 1.
+            mol_size = mol_size if mol_size is not None else 1.
+            self.space_size = grid_size * mol_size * mix_size
         self.max_space = max_space
         self.save_space = save_space
         if self.save_space:
             self.construct_space()
 
-    def build_features(self, feature_dict):
+    def _get_names(self):
+        names = list(self.grid_feats.keys())
+        for key, val in self.mix_feats.items():
+            names.extend(val.names)
+        for key in self.mol_feats:
+            names.extend(list(self.mol_feats[key][0].keys()))
+        return names
+
+    def build_features(self, feature_dict, name_to_files=None):
         grid_features = {}
         mixture_features = {}
+        molecule_features = {}
         for key, value in feature_dict.items():
             if isinstance(value, list):
                 grid_features[key] = value
@@ -237,22 +262,45 @@ class SpaceGenerator:
                     elif value["type"] == "super_mixture":
                         mixture_features[key] = SuperComponentsMixture(value["components"],
                                                                        **value["params"])
+                    elif value["type"] == "molecule_feature":
+                        file = value["file_path"]
+                        if name_to_files is not None and file in name_to_files:
+                            file = name_to_files[file]
+                        molecule_features[key] = pd.read_csv(file,
+                                                             sep=value.get("sep",
+                                                                           ","),
+                                                             header=value.get(
+                                                                 "header", 0)
+                                                             )
+                        for col in value.get("remove_columns", []):
+                            del molecule_features[key][col]
+                        for col in value.get("ignore_columns", []):
+                            molecule_features[key].rename(columns={col: f"__{col}"},
+                                                          inplace=True)
+                        molecule_features[key] = molecule_features[key].to_dict("records")
                 else:
                     raise NotImplemented("The dictionary should contain 'type' key")
 
-        return grid_features, mixture_features
+        return grid_features, mixture_features, molecule_features
 
     def sample(self, n=1):
         if self.save_space:
             return np.random.choice(self.space, n)
         else:
+            spaces = []
             grid_space = []
             for _ in range(n):
                 sample = {}
                 for i, k in self.grid_feats.items():
                     sample[i] = np.random.choice(k)
                 grid_space.append(sample)
-            spaces = [grid_space]
+            spaces.append(grid_space)
+
+            for key, val in self.mol_feats.items():
+                mol_space = []
+                for _ in range(n):
+                    mol_space.append(np.random.choice(val))
+                spaces.append(mol_space)
 
             for mixture in self.mix_feats.values():
                 spaces.append(mixture.sample(n))
@@ -268,13 +316,20 @@ class SpaceGenerator:
             if len(self.mix_feats) > 0:
                 for mix in self.mix_feats.values():
                     spaces.append(mix.get_space())
+
+            if len(self.mol_feats) > 0:
+                for mol in self.mol_feats.values():
+                    spaces.append(mol)
+
             space = space_prod(spaces)
             self.space = pd.DataFrame.from_records(space).fillna(0.)
+            self.space = self.space[self.names]
 
         else:
             save_space = self.save_space
             self.save_space = False
             self.space = pd.DataFrame(self.sample(self.max_space)).fillna(0.)
+            self.space = self.space[self.names]
             self.save_space = save_space
 
     @classmethod
@@ -282,3 +337,10 @@ class SpaceGenerator:
         with open(path) as f:
             my_dict = yaml.safe_load(f)
         return cls(my_dict, **kwargs)
+
+
+if __name__ == "__main__":
+    space = SpaceGenerator.read_yaml("../tmp_/ni_reaction_space.yaml", save_space=True)
+    space = SpaceGenerator.read_yaml("../tmp_/super_mixture.yaml", save_space=True,
+                                     max_space=10)
+

@@ -58,4 +58,3 @@ def run_autogluon(experiment_name, rewards, ensemble_size, st_bar=None):
     mean = predictions.mean(axis=1)
     std = predictions.std(axis=1)
     return mean.values, std.values
-
