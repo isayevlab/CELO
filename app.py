@@ -1,37 +1,82 @@
-from lightning.app import LightningApp, LightningFlow
+import streamlit as st
+import streamlit_authenticator as stauth
+from streamlit_authenticator.utilities.hasher import Hasher
 
-from apps.diverse_samples import DiverseSamplesSelection
-from apps.space_enumerator import SpaceEnumerator
-from apps.ml_predictor import MLModelSelection
-from apps.input_labels import InputLabel
-from apps.exploration_explotation import ExplorationExplotation
+def main():
+    # User authentication
+    credentials = {
+        "usernames": {
+            "admin": {"name": "Admin", "password": "egozom54"},
+            "melissar": {"name": "Melissa Ramirez", "password": "melissa2024"},
+            "lilianag": {"name": "Liliana Gallegos", "password": "lili2024"}
+        }
+    }
 
+    # Hash the passwords
+    for username, user_data in credentials["usernames"].items():
+        user_data["password"] = Hasher([user_data["password"]]).generate()[0]
 
-class LitApp(LightningFlow):
-    def __init__(self) -> None:
-        super().__init__()
-        self.space_enumerator = SpaceEnumerator(parallel=True)
-        self.diverse_samples_selection = DiverseSamplesSelection(parallel=True)
-        self.ml_model_selection = MLModelSelection(parallel=True)
-        self.input_label = InputLabel(parallel=True)
-        self.exploration = ExplorationExplotation(parallel=True)
+    authenticator = stauth.Authenticate(
+        credentials, "some_cookie_name", "some_signature_key", cookie_expiry_days=30
+    )
 
-    def configure_layout(self):
-        return [
-            dict(name="Space enumerator", content=self.space_enumerator),
-            dict(name="Initial Samples Selection", content=self.diverse_samples_selection),
-            dict(name="Label Data", content=self.input_label),
-            dict(name="ML model selection", content=self.ml_model_selection),
-            dict(name="Exploration and Explotation", content=self.exploration)
-        ]
+    name, authentication_status, username = authenticator.login("main")
 
-    def run(self):
-        self.space_enumerator.run()
-        self.diverse_samples_selection.run()
-        self.ml_model_selection.run()
-        self.input_label.run()
-        self.exploration.run()
+    if authentication_status:
+        st.write(f"Welcome *{name}*")
+        authenticator.logout("Logout", "sidebar")
 
+        # Add custom CSS to make radio buttons bigger and bold
+        st.sidebar.markdown(
+            """
+            <style>
+            .sidebar .radio-text {
+                font-size: 20px;
+                font-weight: bold;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
-lit = LitApp()
-app = LightningApp(lit)
+        # Define the app pages
+        st.sidebar.title("Navigation")
+        page = st.sidebar.radio(
+            "Go to",
+            ["Space Enumerator", "Sample Selector", "Data Labeler", "ML Model Selector", "Explorator Explotator"],
+            format_func=lambda x: "🔍 " + x if x == "Space Enumerator" else (
+                "📊 " + x if x == "Sample Selector" else (
+                    "🏷️ " + x if x == "Data Labeler" else (
+                        "🤖 " + x if x == "ML Model Selector" else (
+                            "🧪 " + x if x == "Explorator Explotator" else x
+                        )
+                    )
+                )
+            ),
+            key="main_menu"
+        )
+
+        if page == "Space Enumerator":
+            from streamlit_pages import space_enumerator
+            space_enumerator.space_enumerator()
+        elif page == "Sample Selector":
+            from streamlit_pages import sample_selector
+            sample_selector.sample_selector()
+        elif page == "Data Labeler":
+            from streamlit_pages import data_labeler
+            data_labeler.data_labeler()
+        elif page == "ML Model Selector":
+            from streamlit_pages import ml_model_selector
+            ml_model_selector.ml_model_selector()
+        elif page == "Explorator Explotator":
+            from streamlit_pages import explorator_explotator
+            explorator_explotator.explorator_explotator()
+
+    elif authentication_status == False:
+        st.error("Username/password is incorrect")
+
+    elif authentication_status == None:
+        st.warning("Please enter your username and password")
+
+if __name__ == "__main__":
+    main()
