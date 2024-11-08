@@ -1,4 +1,9 @@
 streamlit
-streamlit-authenticator
+streamlit-authenticator==0.3.3
 pandas
 streamlit-ace
+lightning
+umap-learn
+rdkit
+plotly
+autogluon

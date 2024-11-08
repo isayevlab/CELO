@@ -1,10 +1,7 @@
-
 import pandas as pd
 import streamlit as st
 from umap import UMAP
-
 import plotly.express as px
-
 from modules.preprocess_data import preprocess_data
 from modules.select_diverse_samples import select_init_diverse
 
@@ -78,7 +75,7 @@ def sample_selector():
         selected = space_filtered.iloc[selected_indxs]
 
         # Include ignored columns in the final output
-        ignored_columns_data = space[ignore_columns].iloc[selected_indxs]
+        ignored_columns_data = space.loc[selected.index, ignore_columns]
         final_output = pd.concat([selected, ignored_columns_data], axis=1)
 
         st.dataframe(final_output)

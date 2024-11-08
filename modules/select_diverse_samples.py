@@ -1,4 +1,5 @@
 import numpy as np
+import rdkit
 from rdkit.ML.Cluster.Butina import ClusterData as ButinaClusterData
 from scipy.optimize import minimize_scalar
 from sklearn.metrics import pairwise_distances
