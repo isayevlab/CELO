@@ -1,23 +1,17 @@
 import streamlit as st
 import streamlit_authenticator as stauth
-from streamlit_authenticator.utilities.hasher import Hasher
+# from streamlit_authenticator.utilities.hasher import Hasher
+
+from configs.credentials import credentials
 
 def main():
-    # User authentication
-    credentials = {
-        "usernames": {
-            "admin": {"name": "Admin", "password": "egozom54"},
-            "melissar": {"name": "Melissa Ramirez", "password": "melissa2024"},
-            "lilianag": {"name": "Liliana Gallegos", "password": "lili2024"}
-        }
-    }
-
-    # Hash the passwords
-    for username, user_data in credentials["usernames"].items():
-        user_data["password"] = Hasher([user_data["password"]]).generate()[0]
+    # No hashing for now, can add it later for security
+    # # Hash the passwords
+    # for username, user_data in credentials["usernames"].items():
+    #     user_data["password"] = Hasher([user_data["password"]]).generate()[0]
 
     authenticator = stauth.Authenticate(
-        credentials, "some_cookie_name", "some_signature_key", cookie_expiry_days=30
+        credentials, "celo_cookies", "celo_signature", cookie_expiry_days=30
     )
 
     name, authentication_status, username = authenticator.login("main")
