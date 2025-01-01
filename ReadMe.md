@@ -22,18 +22,19 @@ platform for accelerating your research and experimentation process.
 
 ## Installation
 
-The key dependencies are `lightning`, `streamlit`, `scikit-learn`, `autoglueon`, `pandas`, and `numpy`. 
-For more details, refer to the file `conda_environment.yaml`.
+The key dependencies are `streamlit`, `scikit-learn`, `autoglueon`, `pandas`, `rdkit` and `numpy`. 
+For more details, refer to the file `requirements.txt`.
 
 ### CELO Installation
 
 To install CELO, use the following set of commands:
 
 ```bash
-conda env create -f conda_environment.yml
+conda create -n celo python=3.10
 conda activate celo
+pip install -r requirements.txt
 ```
-This will create a conda environment based on the specifications in `conda_environment.yml` and activate it.
+This will create a conda environment, activate it, and install key dependencies. 
 
 If you are facing problems with long environment sync and dependency update, consider using mamba, a faster alternative 
 to conda, for environment management. You can install mamba using conda:
@@ -45,17 +46,17 @@ conda install mamba -n base -c conda-forge
 
 ## Usage
 
-CELO is a web application with a Lightning App backend and a Streamlit frontend. It can be run either locally or on a 
+CELO is a web application with a Streamlit frontend and backend engine. It can be run either locally or on a 
 remote machine. The app has an asynchronous engine, allowing multiple users to use it simultaneously. However, it has 
 not been tested under considerable parallel load.
 
 To run the app, simply install the dependencies and use the following command:
 
 ```bash
-  lightning_app run app app.py
+  streamlit run app.py --server.port 8000 --server.address 127.0.0.1
 ```
 
-This will start the application, and you can access it through your web browser.
+This will start the application, and you can access it through your web browser: `127.0.0.1:8000`
 
 <p float="left">
   <img src="imgs/space_enumerator.png" width="45%" />

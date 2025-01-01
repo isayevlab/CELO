@@ -61,7 +61,7 @@ def run_autogluon(experiment_name, rewards, ensemble_size, st_bar=None, evaluati
         st_bar.progress(0, text="ML model selection")
 
     predictor = predictor.fit(X, fit_weighted_ensemble=False, hyperparameters=hyperparameters)
-    model = predictor.get_model_best()
+    model = predictor.model_best
     best_model_type = model.split('_')[0]  # Extract the model type from the model name
     model_hyperparameters = get_hyperparameters(model)
 
